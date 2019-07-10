@@ -9,74 +9,56 @@ use remit;
 go
 
 -- create exported table
-create table users (
-   id bigint primary key,
+create table giros (
+   id uniqueidentifier primary key,
    name varchar(100)
 );
 go
 
 -- create message types
-create message type SourceMessageType_Users validation = none;
-create message type TargetMessageType_Users validation = none;
+create message type SourceMessageType_giros validation = none;
+create message type TargetMessageType_giros validation = none;
 go
 
 -- create contract
-create contract ContractName_Users (SourceMessageType_Users sent by initiator, TargetMessageType_Users sent by target);
+create contract ContractName_giros (SourceMessageType_giros sent by initiator, TargetMessageType_giros sent by target);
 go
 
 -- create queues
-create queue SourceQueue_Users with status = on, poison_message_handling (status = off);
-create queue TargetQueue_Users with status = on, poison_message_handling (status = off);
+create queue SourceQueue_giros with status = on, poison_message_handling (status = off);
+create queue TargetQueue_giros with status = on, poison_message_handling (status = off);
 go
 
 -- create services
-create service SourceService_Users on queue SourceQueue_Users (ContractName_Users);
-create service TargetService_Users on queue TargetQueue_Users (ContractName_Users);
+create service SourceService_giros on queue SourceQueue_giros (ContractName_giros);
+create service TargetService_giros on queue TargetQueue_giros (ContractName_giros);
 go
 
-create trigger TriggerName_Users on [dbo].Users after insert
+create trigger TriggerName_giros on [dbo].giros after insert
     as
         set nocount on;
 
         declare @row as nvarchar(4000);
         declare @message as nvarchar(4000);
 
-        set @row = (select name from inserted for json auto, without_array_wrapper);
+        set @row = (select id, name from inserted for json auto, without_array_wrapper);
         set @message = (select id, row = @row, tracking_type = 'inserted' from inserted for json auto, without_array_wrapper);
 
         declare @MyDialog UNIQUEIDENTIFIER;
-        begin dialog conversation @MyDialog from service SourceService_Users to service 'TargetService_Users' on contract ContractName_Users with encryption = off;
-        send on conversation @MyDialog message type SourceMessageType_Users (@message);
+        begin dialog conversation @MyDialog from service SourceService_giros to service 'TargetService_giros' on contract ContractName_giros with encryption = off;
+        send on conversation @MyDialog message type SourceMessageType_giros (@message);
         end conversation @MyDialog;
 go
 
--- insert into users values (1, 'arek');
--- insert into users values (2, 'arek');
--- insert into users values (3, 'arek3');
--- insert into users values (4, 'arek');
--- insert into users values (5, 'arek');
--- insert into users values (6, 'arek1');
--- insert into users values (8, 'arek2');
--- insert into users values (8, 'arek');
--- insert into users values (9, 'arek');
--- insert into users values (10, 'arek');
--- insert into users values (11, 'arek');
--- insert into users values (12, 'arek');
--- insert into users values (13, 'arek');
--- insert into users values (14, 'arek');
--- insert into users values (15, 'arek');
--- insert into users values (16, 'arek');
--- insert into users values (17, 'arek');
--- insert into users values (18, 'arek');
--- insert into users values (19, 'arek');
--- insert into users values (19, 'arek');
--- insert into users values (21, 'arek');
-
+--insert into giros values (newid(), 'arek');
+--
 -- DECLARE @counter int
 -- SET @counter = 1300
 -- WHILE @counter < 1400 BEGIN
---     insert into users values(@counter, concat('arek_', @counter));
+--     insert into giros values(@counter, concat('arek_', @counter));
 --     SET @counter = @counter + 1
 --     waitfor delay '00:00:00.100'
 -- END
 -- GO
+
+-- select * from TargetQueue_giros;

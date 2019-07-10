@@ -43,7 +43,7 @@ class Event {
 
 class EventValue {
     @JsonProperty("id")
-    private Long id;
+    private UUID id;
     @JsonProperty("row")
     private String row;
     @JsonProperty("tracking_type")
@@ -52,7 +52,7 @@ class EventValue {
     public EventValue() {
     }
 
-    public EventValue(Long id, String row, String trackingType) {
+    public EventValue(UUID id, String row, String trackingType) {
         this.id = id;
         this.row = row;
         this.trackingType = trackingType;
@@ -125,7 +125,7 @@ public class QueueToKafkaConnectorApplication {
 
     private static final String RECEIVE_QUERY = "waitfor(\n" +
             "        RECEIVE top (1) conversation_handle,service_name,message_type_name,message_body,message_sequence_number\n" +
-            "        FROM [TargetQueue_Users]\n" +
+            "        FROM [TargetQueue_giros]\n" +
             "        ), timeout 3000";
     public static void main(String[] args) {
         SpringApplication.run(QueueToKafkaConnectorApplication.class, args);
