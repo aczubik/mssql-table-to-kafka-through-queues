@@ -52,7 +52,7 @@ go
 
 -- insert into users values (1, 'arek');
 -- insert into users values (2, 'arek');
--- insert into users values (3, 'arek');
+-- insert into users values (3, 'arek3');
 -- insert into users values (4, 'arek');
 -- insert into users values (5, 'arek');
 -- insert into users values (6, 'arek1');

@@ -3,7 +3,6 @@ services:
 
   db:
     image: mcr.microsoft.com/mssql/server:2017-latest-ubuntu
-    container_name: db
     ports:
       - "1433:1433"
     environment:
@@ -21,14 +20,12 @@ services:
   zookeeper:
     image: zookeeper:3.4.9
     restart: unless-stopped
-    hostname: zookeeper
     ports:
       - "2181:2181"
 
   kafka:
     image: confluentinc/cp-kafka:latest
     hostname: kafka
-    container_name: kafka
     ports:
       - "9092:9092"
     environment:
