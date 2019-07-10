@@ -17,7 +17,7 @@ create procedure dbo.SendToQueue
 as
     declare @MyDialog UNIQUEIDENTIFIER;
     begin dialog conversation @MyDialog from service SourceService to service 'TargetService' on contract MyContract with encryption = off;
-    send on conversation @MyDialog message type SourceMessage (@value) ;
+    send on conversation @MyDialog message type SourceMessage (@value);
     end conversation @MyDialog
 go
 
@@ -42,8 +42,13 @@ insert into users values (1, 'arek');
 insert into users values (2, 'arek');
 insert into users values (3, 'arek');
 insert into users values (4, 'arek');
+insert into users values (5, 'arek');
+
+declare @a nvarchar(100);
 
 delete from debug_table where 1=1;
 select * from debug_table;
 select * from sys.transmission_queue;
+select * from TargetQueue;
+
 

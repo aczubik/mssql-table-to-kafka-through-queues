@@ -4,6 +4,7 @@ go
 use master;
 go
 
+-- enable broker for remit database
 alter database remit set ENABLE_BROKER;
 go
 
@@ -15,12 +16,13 @@ create message type SourceMessage validation = none;
 create message type TargetMessage validation = none;
 go
 
+-- create contract
 create contract MyContract (SourceMessage sent by initiator, TargetMessage sent by target);
-go 
+go
 
 -- create queues
-create queue dbo.SourceQueue;
-create queue dbo.TargetQueue;
+create queue dbo.SourceQueue with status = on, poison_message_handling (status = off);
+create queue dbo.TargetQueue with status = on, poison_message_handling (status = off);
 go
 
 -- create services
@@ -37,11 +39,9 @@ go
 -- create TargetQueue listening procedure
 create PROCEDURE OnMessageProc
 AS
-DECLARE @RecvReqDlgHandle UNIQUEIDENTIFIER;
-DECLARE @RecvReqMsg NVARCHAR(100);
-DECLARE @RecvReqMsgName sysname;
-
-    insert into debug_table values ('before begin');
+DECLARE @DlgHandle UNIQUEIDENTIFIER;
+DECLARE @MessageBody NVARCHAR(100);
+DECLARE @MessageTypeName sysname;
 
     WHILE (1=1)
     BEGIN
@@ -50,11 +50,11 @@ DECLARE @RecvReqMsgName sysname;
 
         WAITFOR
             ( RECEIVE TOP(1)
-                @RecvReqDlgHandle = conversation_handle,
-                @RecvReqMsg = message_body,
-                @RecvReqMsgName = message_type_name
+                @DlgHandle = conversation_handle,
+                @MessageBody = message_body,
+                @MessageTypeName = message_type_name
             FROM TargetQueue
-            ), TIMEOUT 5000;
+            ), TIMEOUT 500;
 
 
         IF (@@ROWCOUNT = 0)
@@ -63,29 +63,26 @@ DECLARE @RecvReqMsgName sysname;
                 BREAK;
             END
 
-        IF @RecvReqMsgName =
-           N'SourceMessage'
+        IF @MessageTypeName = N'SourceMessage'
             BEGIN
+                -- I am not sure yet what is this reply for
                 DECLARE @ReplyMsg NVARCHAR(100);
-                SELECT @ReplyMsg =
-                       N'<ReplyMsg>Message for Initiator service.</ReplyMsg>';
+                SELECT @ReplyMsg = N'<ReplyMsg>Message for Initiator service.</ReplyMsg>';
 
-                SEND ON CONVERSATION @RecvReqDlgHandle
+                SEND ON CONVERSATION @DlgHandle
                     MESSAGE TYPE
                     [TargetMessage]
                     (@ReplyMsg);
 
-                insert into debug_table values (CONCAT('Got message: ', @RecvReqMsg));
-                insert into debug_table values ('sent reply');
+                insert into debug_table values (CONCAT('Got message: ', @MessageBody));
             END
-        ELSE IF @RecvReqMsgName =
-                N'http://schemas.microsoft.com/SQL/ServiceBroker/EndDialog'
+        ELSE IF @MessageTypeName = N'http://schemas.microsoft.com/SQL/ServiceBroker/EndDialog'
             BEGIN
                 END CONVERSATION @RecvReqDlgHandle;
                 insert into debug_table values ('end dialog');
             END
-        ELSE IF @RecvReqMsgName =
-                N'http://schemas.microsoft.com/SQL/ServiceBroker/Error'
+        -- I don't know what happens in case of error. Will it be 're-consumed' or what?
+        ELSE IF @RecvReqMsgName = N'http://schemas.microsoft.com/SQL/ServiceBroker/Error'
             BEGIN
                 END CONVERSATION @RecvReqDlgHandle;
                 insert into debug_table values ('conversation error');
