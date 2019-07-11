@@ -39,6 +39,25 @@ create service SourceService_giros on queue SourceQueue_giros (ContractName_giro
 create service TargetService_giros on queue TargetQueue_giros (ContractName_giros);
 go
 
+alter procedure ConfigureQueuesForTable(@TableName SYSNAME)
+as
+begin
+    declare @SourceQueueName as SYSNAME = concat(N'SourceQueue_', @TableName);
+    declare @TargetQueueName as SYSNAME = concat(N'TargetQueue_', @TableName);
+    declare @handle UNIQUEIDENTIFIER;
+
+    BEGIN DIALOG CONVERSATION @handle
+        FROM SERVICE @SourceQueueName
+        TO SERVICE @TargetQueueName
+        ON CONTRACT @TargetQueueName
+        WITH ENCRYPTION = OFF;
+
+     --create queue @TableName with status = on, poison_message_handling (status = off);
+     --create queue @TargetQueueName with status = on, poison_message_handling (status = off);
+
+end
+go
+
 CREATE TABLE [SessionConversations] (
 	FromService SYSNAME NOT NULL,
 	ToService SYSNAME NOT NULL,
@@ -133,27 +152,21 @@ create trigger TriggerName_giros on [dbo].giros after insert
 
         EXECUTE usp_Send N'SourceService_giros', N'TargetService_giros', N'ContractName_giros', N'SourceMessageType_giros', @message
 
---         declare @MyDialog UNIQUEIDENTIFIER;
---         begin dialog conversation @MyDialog from service SourceService_giros to service 'TargetService_giros' on contract ContractName_giros with encryption = off;
---         send on conversation @MyDialog message type SourceMessageType_giros (@message);
---         end conversation @MyDialog;
 go
 
 use remit;
 go
 
-
 -- EXECUTE usp_Send N'SourceService_giros', N'TargetService_giros', N'ContractName_giros', N'SourceMessageType_giros', 'terefere'
 
-
-DECLARE @counter int
-SET @counter = 5000
-WHILE @counter < 50000 BEGIN
-    insert into giros values (newid(), concat('arek', @counter));
-    SET @counter = @counter + 1
-    -- waitfor delay '00:00:00.010'
-END
-GO
-
-select * from TargetQueue_giros;
-select * from sys.transmission_queue;
+-- DECLARE @counter int
+-- SET @counter = 5000
+-- WHILE @counter < 50000 BEGIN
+--     insert into giros values (newid(), concat('arek', @counter));
+--     SET @counter = @counter + 1
+--     -- waitfor delay '00:00:00.010'
+-- END
+-- GO
+--
+-- select * from TargetQueue_giros;
+-- select * from sys.transmission_queue;
