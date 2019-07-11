@@ -148,7 +148,7 @@ go
 
 DECLARE @counter int
 SET @counter = 5000
-WHILE @counter < 50000 BEGIN
+WHILE @counter < 0 BEGIN
     insert into giros values (newid(), concat('arek', @counter));
     SET @counter = @counter + 1
     -- waitfor delay '00:00:00.010'

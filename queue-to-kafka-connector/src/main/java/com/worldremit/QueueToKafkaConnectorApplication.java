@@ -1,27 +1,26 @@
 package com.worldremit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.worldremit.consumers.GirosProcessor;
 import lombok.Data;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.connect.json.JsonSerializer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.stereotype.Component;
 
 import javax.persistence.*;
 import java.io.IOException;
@@ -53,6 +52,10 @@ class EventValue {
     public String getRow() {
         return row;
     }
+
+    public UUID getId() {
+        return id;
+    }
 }
 
 @Configuration
@@ -81,7 +84,7 @@ class KafkaProducerConfig {
     private String bootstrapAddress;
 
     @Bean
-    public ProducerFactory<String, String> producerFactory() {
+    public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
@@ -91,12 +94,12 @@ class KafkaProducerConfig {
                 StringSerializer.class);
         configProps.put(
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                StringSerializer.class);
-        return new DefaultKafkaProducerFactory<>(configProps);
+                JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<String, Object>(configProps);
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate() {
+    public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
 }
@@ -111,11 +114,11 @@ class MsSqlQueueListener {
             "        ), timeout 3000";
 
     private EntityManagerFactory emf;
-    private KafkaTemplate<String, String> kafkaTemplate;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     private final String sqlServerQueueName;
 
-    public MsSqlQueueListener(String sqlServerQueueName, EntityManagerFactory emf, KafkaTemplate<String, String> kafkaTemplate) {
+    public MsSqlQueueListener(String sqlServerQueueName, EntityManagerFactory emf, KafkaTemplate<String, Object> kafkaTemplate) {
         this.sqlServerQueueName = sqlServerQueueName;
         this.emf = emf;
         this.kafkaTemplate = kafkaTemplate;
@@ -126,7 +129,7 @@ class MsSqlQueueListener {
         try {
             em = emf.createEntityManager();
 
-            while (1==1) {
+            while (1 == 1) {
 
                 EntityTransaction transaction = em.getTransaction();
                 transaction.begin();
@@ -162,9 +165,9 @@ class MsSqlQueueListener {
         System.out.println(event);
 
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         EventValue eventValue = objectMapper.readValue(messageBody, EventValue.class);
-
-        kafkaTemplate.send("giros", eventValue.getRow());
+        kafkaTemplate.send(GirosProcessor.GIROS, eventValue.getId().toString(), objectMapper.readTree(eventValue.getRow()));
 
     }
 }
@@ -180,7 +183,7 @@ public class QueueToKafkaConnectorApplication {
     private MsSqlQueueListener msSqlQueueListener;
 
     @Bean
-    public MsSqlQueueListener girosListener(EntityManagerFactory emf, KafkaTemplate<String, String> kafkaTemplate) {
+    public MsSqlQueueListener girosListener(EntityManagerFactory emf, KafkaTemplate<String, Object> kafkaTemplate) {
         return new MsSqlQueueListener("TargetQueue_giros", emf, kafkaTemplate);
     }
 
