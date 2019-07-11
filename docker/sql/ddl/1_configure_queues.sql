@@ -3,6 +3,10 @@
 -- 2. https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-service-broker?view=sql-server-2017
 -- 3. https://docs.microsoft.com/en-us/previous-versions/sql/sql-server-2008-r2/bb839489(v=sql.105)
 
+-- QUESTIONS, PROBLEMS
+-- 1. What happens when conversation lifetime elapses and it is closed with an error? What happens with messages within that conversation
+-- 2. What to do when pushing message to queue fails?
+
 use master;
 go
 
@@ -75,7 +79,7 @@ BEGIN
 
 		IF @handle IS NULL
 		BEGIN
-			-- Need to start a new conversation for the current @@spid
+			-- Need to start a new conversation
 			--
 			BEGIN DIALOG CONVERSATION @handle
 				FROM SERVICE @fromService
@@ -132,28 +136,21 @@ create trigger TriggerName_giros on [dbo].giros after insert
         set @message = (select id, row = @row, tracking_type = 'inserted' from inserted for json auto, without_array_wrapper);
 
         EXECUTE usp_Send N'SourceService_giros', N'TargetService_giros', N'ContractName_giros', N'SourceMessageType_giros', @message
-
---         declare @MyDialog UNIQUEIDENTIFIER;
---         begin dialog conversation @MyDialog from service SourceService_giros to service 'TargetService_giros' on contract ContractName_giros with encryption = off;
---         send on conversation @MyDialog message type SourceMessageType_giros (@message);
---         end conversation @MyDialog;
 go
 
 use remit;
 go
 
-
 -- EXECUTE usp_Send N'SourceService_giros', N'TargetService_giros', N'ContractName_giros', N'SourceMessageType_giros', 'terefere'
 
-
-DECLARE @counter int
-SET @counter = 5000
-WHILE @counter < 0 BEGIN
-    insert into giros values (newid(), concat('arek', @counter));
-    SET @counter = @counter + 1
-    -- waitfor delay '00:00:00.010'
-END
-GO
-
-select * from TargetQueue_giros;
-select * from sys.transmission_queue;
+-- DECLARE @counter int
+-- SET @counter = 5000
+-- WHILE @counter < 50000 BEGIN
+--     insert into giros values (newid(), concat('arek', @counter));
+--     SET @counter = @counter + 1
+--     -- waitfor delay '00:00:00.010'
+-- END
+-- GO
+--
+-- select * from TargetQueue_giros;
+-- select * from sys.transmission_queue;
