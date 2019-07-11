@@ -1,4 +1,26 @@
 spring:
+  cloud:
+    stream:
+      bindings:
+        session:
+          destination: session
+          contentType: application/json
+      kafka:
+        binder:
+          brokers: localhost
+          defaultZkPort: 2181
+          defaultBrokerPort: 9092
+        bindings:
+          session:
+            producer:
+              configuration:
+                value:
+                  serializer: org.springframework.kafka.support.serializer.JsonSerializer
+                key:
+                  serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  application:
+    name: mssql-table-to-kafka
   datasource:
     url: jdbc:sqlserver://localhost:1433;databaseName=remit
     username: sa
@@ -13,4 +35,5 @@ spring:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
 kafka:
   bootstrapAddress: localhost:9092
+
 
