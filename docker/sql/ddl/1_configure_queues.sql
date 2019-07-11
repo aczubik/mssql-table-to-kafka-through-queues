@@ -3,6 +3,10 @@
 -- 2. https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-service-broker?view=sql-server-2017
 -- 3. https://docs.microsoft.com/en-us/previous-versions/sql/sql-server-2008-r2/bb839489(v=sql.105)
 
+-- QUESTIONS, PROBLEMS
+-- 1. What happens when conversation lifetime elapses and it is closed with an error? What happens with messages within that conversation
+-- 2. What to do when pushing message to queue fails?
+
 use master;
 go
 
@@ -37,25 +41,6 @@ go
 -- create services
 create service SourceService_giros on queue SourceQueue_giros (ContractName_giros);
 create service TargetService_giros on queue TargetQueue_giros (ContractName_giros);
-go
-
-alter procedure ConfigureQueuesForTable(@TableName SYSNAME)
-as
-begin
-    declare @SourceQueueName as SYSNAME = concat(N'SourceQueue_', @TableName);
-    declare @TargetQueueName as SYSNAME = concat(N'TargetQueue_', @TableName);
-    declare @handle UNIQUEIDENTIFIER;
-
-    BEGIN DIALOG CONVERSATION @handle
-        FROM SERVICE @SourceQueueName
-        TO SERVICE @TargetQueueName
-        ON CONTRACT @TargetQueueName
-        WITH ENCRYPTION = OFF;
-
-     --create queue @TableName with status = on, poison_message_handling (status = off);
-     --create queue @TargetQueueName with status = on, poison_message_handling (status = off);
-
-end
 go
 
 CREATE TABLE [SessionConversations] (
@@ -94,7 +79,7 @@ BEGIN
 
 		IF @handle IS NULL
 		BEGIN
-			-- Need to start a new conversation for the current @@spid
+			-- Need to start a new conversation
 			--
 			BEGIN DIALOG CONVERSATION @handle
 				FROM SERVICE @fromService
@@ -151,7 +136,6 @@ create trigger TriggerName_giros on [dbo].giros after insert
         set @message = (select id, row = @row, tracking_type = 'inserted' from inserted for json auto, without_array_wrapper);
 
         EXECUTE usp_Send N'SourceService_giros', N'TargetService_giros', N'ContractName_giros', N'SourceMessageType_giros', @message
-
 go
 
 use remit;
